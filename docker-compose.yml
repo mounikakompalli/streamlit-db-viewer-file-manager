@@ -1,0 +1,93 @@
+# ============================================================
+# docker-compose.yml - Orchestrates App + MySQL Containers
+# Stage 6: Wires both containers together with all configuration
+# ============================================================
+
+version: "3.8"
+
+services:
+
+  # ============================================================
+  # SERVICE 1: MySQL Database Container
+  # Uses the official MySQL 8.0 image from Docker Hub
+  # ============================================================
+  db:
+    image: mysql:8.0
+    container_name: mysql_db
+    restart: always
+
+    # Environment variables — configure the MySQL server
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword   # root admin password
+      MYSQL_DATABASE: appdb               # creates this database on first start
+      MYSQL_USER: appuser                 # creates this user
+      MYSQL_PASSWORD: apppassword         # password for appuser
+
+    # Port mapping: Mac port 3306 → container port 3306
+    # Lets you connect from VS Code MySQL extension using localhost:3306
+    ports:
+      - "3306:3306"
+
+    # Volume mounts:
+    # 1. init.sql → runs automatically on first container start (creates tables + data)
+    # 2. mysql_data → persists database files so data survives container restarts
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - mysql_data:/var/lib/mysql
+
+    # Memory limit — keeps MySQL within bounds on 8GB Mac
+    mem_limit: 512m
+
+    # Health check — Docker waits until MySQL is truly ready before starting the app
+    # Without this, the app might try to connect before MySQL is ready and crash
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s    # check every 10 seconds
+      timeout: 5s      # fail if no response within 5 seconds
+      retries: 5       # try 5 times before marking as unhealthy
+      start_period: 30s # give MySQL 30 seconds to start before first check
+
+  # ============================================================
+  # SERVICE 2: Streamlit App Container
+  # Built from our custom Dockerfile in the app/ directory
+  # ============================================================
+  app:
+    build: ./app                  # tells Docker to build using app/Dockerfile
+    container_name: streamlit_app
+    restart: always
+
+    # Port mapping: Mac port 8501 → container port 8501
+    # Open http://localhost:8501 in your browser to see the app
+    ports:
+      - "8501:8501"
+
+    # Environment variables — tells the app how to connect to MySQL
+    # DB_HOST = "db" (the service name above — Docker resolves this automatically)
+    environment:
+      DB_HOST: db
+      DB_USER: appuser
+      DB_PASS: apppassword
+      DB_NAME: appdb
+
+    # Volume mounts:
+    # 1. uploads/ on your Mac → /app/uploads in container (source for file import)
+    # 2. imported_files volume → /app/imported_files in container (target for file import)
+    volumes:
+      - ./uploads:/app/uploads
+      - imported_files:/app/imported_files
+
+    # Memory limit — keeps Streamlit within bounds on 8GB Mac
+    mem_limit: 256m
+
+    # Dependency: app waits for db to pass its health check before starting
+    depends_on:
+      db:
+        condition: service_healthy
+
+# ============================================================
+# NAMED VOLUMES
+# Docker manages these — data persists even when containers stop
+# ============================================================
+volumes:
+  mysql_data:        # stores MySQL database files
+  imported_files:    # stores files imported via the app UI

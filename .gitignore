@@ -1,0 +1,52 @@
+# ============================================================
+# .gitignore - Files and folders to exclude from Git
+# ============================================================
+
+# Uploaded/imported files (runtime data, not source code)
+uploads/*
+!uploads/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+.env
+
+# Environment variables (never commit secrets)
+.env
+.env.*
+*.env
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Docker override files (local dev overrides)
+docker-compose.override.yml
+
+# Logs
+*.log
+logs/
+
+# IDE
+.idea/
+*.swp
+*.swo
